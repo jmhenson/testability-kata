@@ -8,11 +8,9 @@ namespace TestabilityKata
         public static void Main(string[] args)
         {
             var mailSender = new MailSender();
-            new Program(
-                    new Logger(
-                        mailSender,
-                        new CustomFileWriterFactory(mailSender)),
-                    mailSender)
+            var logger = new Logger(mailSender, filePath => new CustomFileWriter(mailSender, filePath));
+            
+            new Program(logger, mailSender)
                 .Run();
         }
 
@@ -50,14 +48,14 @@ namespace TestabilityKata
     public class Logger
     {
         private readonly MailSender mailSender;
-        private readonly CustomFileWriterFactory customFileWriterFactory;
+        private readonly Func<string, CustomFileWriter> customFileWriterSource;
 
         public Logger(
             MailSender mailSender,
-            CustomFileWriterFactory customFileWriterFactory)
+            Func<string, CustomFileWriter> customFileWriterSource)
         {
             this.mailSender = mailSender;
-            this.customFileWriterFactory = customFileWriterFactory;
+            this.customFileWriterSource = customFileWriterSource;
         }
 
         public void Log(LogLevel logLevel, string logText)
@@ -68,7 +66,7 @@ namespace TestabilityKata
             {
 
                 //also log to file
-                var writer = customFileWriterFactory.Create(@"C:\" + logLevel + "-annoying-log-file.txt");
+                var writer = customFileWriterSource(@"C:\" + logLevel + "-annoying-log-file.txt");
                 writer.AppendLine(logText);
 
                 //send e-mail about error
@@ -87,24 +85,6 @@ namespace TestabilityKata
 
             //for the sake of simplicity, this actually doesn't send an e-mail right now - but let's pretend it does.
             Console.WriteLine("Sent e-mail to " + recipient + " with content \"" + content + "\"");
-        }
-    }
-
-    public class CustomFileWriterFactory
-    {
-        private readonly MailSender mailSender;
-
-        public CustomFileWriterFactory(
-            MailSender mailSender)
-        {
-            this.mailSender = mailSender;
-        }
-
-        public CustomFileWriter Create(string filePath)
-        {
-            return new CustomFileWriter(
-                mailSender, 
-                filePath);
         }
     }
 
