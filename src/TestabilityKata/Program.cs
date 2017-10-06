@@ -3,16 +3,14 @@ using System.IO;
 
 namespace TestabilityKata
 {
-    public class Program : IProgram
+    public class Program
     {
         public static void Main(string[] args)
         {
             var mailSender = new MailSender();
-            new Program(
-                    new Logger(
-                        mailSender,
-                        new CustomFileWriterFactory(mailSender)),
-                    mailSender)
+            var logger = new Logger(mailSender, filePath => new CustomFileWriter(mailSender, filePath));
+            
+            new Program(logger, mailSender)
                 .Run();
         }
 
@@ -50,14 +48,15 @@ namespace TestabilityKata
     public class Logger : ILogger
     {
         private readonly IMailSender mailSender;
-        private readonly ICustomFileWriterFactory customFileWriterFactory;
+
+        private readonly Func<string, CustomFileWriter> customFileWriterSource;
 
         public Logger(
             IMailSender mailSender,
-            ICustomFileWriterFactory customFileWriterFactory)
+            Func<string, CustomFileWriter> customFileWriterSource)
         {
             this.mailSender = mailSender;
-            this.customFileWriterFactory = customFileWriterFactory;
+            this.customFileWriterSource = customFileWriterSource;
         }
 
         public void Log(LogLevel logLevel, string logText)
@@ -68,7 +67,7 @@ namespace TestabilityKata
             {
 
                 //also log to file
-                var writer = customFileWriterFactory.Create(@"C:\" + logLevel + "-annoying-log-file.txt");
+                var writer = customFileWriterSource(@"C:\" + logLevel + "-annoying-log-file.txt");
                 writer.AppendLine(logText);
 
                 //send e-mail about error
@@ -90,25 +89,7 @@ namespace TestabilityKata
         }
     }
 
-    public class CustomFileWriterFactory : ICustomFileWriterFactory
-    {
-        private readonly IMailSender mailSender;
-
-        public CustomFileWriterFactory(
-            IMailSender mailSender)
-        {
-            this.mailSender = mailSender;
-        }
-
-        public ICustomFileWriter Create(string filePath)
-        {
-            return new CustomFileWriter(
-                mailSender, 
-                filePath);
-        }
-    }
-
-    public class CustomFileWriter : ICustomFileWriter
+    public class CustomFileWriter
     {
         private readonly IMailSender mailSender;
 
